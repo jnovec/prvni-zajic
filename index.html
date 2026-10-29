@@ -1,0 +1,65 @@
+<!doctype html><html lang="cs"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>NOVEC Bunny — Minimal</title><style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}body{background:radial-gradient(ellipse at 50% 45%,#f9f9f2 0%,#e9eee3 75%,#dce5d9 100%)}.scene{position:relative;width:100vw;height:100dvh;overflow:hidden}.scene canvas{width:100%;height:100%;display:block}.bunny{display:none}@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style><style>
+.scene .character-image[hidden]{display:none}.scene .character-image{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:min(72dvh,700px);max-width:85vw;object-fit:contain;z-index:2;filter:drop-shadow(0 16px 16px #263a2b35);animation:breath 3s ease-in-out infinite}.scene .character-image.talking{animation:speaking .4s ease-in-out infinite alternate}.scene .character-image.listening{animation:attention 1.4s ease-in-out infinite}.scene.has-image canvas{visibility:hidden}.speech-bubble{position:absolute;z-index:5;top:5%;left:50%;transform:translateX(-50%);width:max-content;max-width:min(90vw,560px);padding:17px 22px;border:2px solid #526b54;border-radius:24px;background:#fff;color:#324b3c;font:600 clamp(17px,2.5vw,26px)/1.4 system-ui,sans-serif;text-align:center;box-shadow:0 8px 30px #273d2d25}.speech-bubble:after{content:'';position:absolute;left:50%;bottom:-12px;background:#fff;border-right:2px solid #526b54;border-bottom:2px solid #526b54;width:20px;height:20px;transform:translateX(-50%) rotate(45deg)}.activation{position:absolute;z-index:8;bottom:7%;left:50%;transform:translateX(-50%);padding:13px 22px;border:0;border-radius:26px;background:#315a45;color:#fff;font:600 16px system-ui,sans-serif;cursor:pointer}.activation[hidden]{display:none}.voice-status{position:absolute;z-index:4;bottom:2%;left:50%;transform:translateX(-50%);font:12px system-ui;color:#617968;white-space:nowrap}@keyframes breath{50%{transform:translate(-50%,calc(-50% - 8px)) rotate(-1deg)}}@keyframes attention{50%{transform:translate(-50%,calc(-50% - 5px)) rotate(2deg)}}@keyframes speaking{to{transform:translate(-50%,calc(-50% - 5px)) rotate(1deg)}}@media(prefers-reduced-motion:reduce){.character-image{animation:none!important}}
+</style></head><body><main class="scene" aria-label="Animovaný 3D zajíček"><span class="bunny" id="bunny" aria-hidden="true"></span><img class="character-image" id="character" alt="Zajíček" hidden><div class="speech-bubble" id="speech" role="status" aria-live="polite">Čau, co pro tebe můžu udělat?</div><button class="activation" id="activation" hidden>Zapnout hlas a mikrofon</button><div class="voice-status" id="voiceStatus"></div></main><script src="three.min.js"></script><script>
+(() => {
+  // A missing CDN or unavailable WebGL leaves the original CSS bunny visible.
+  if (!window.THREE) return;
+  const host = document.querySelector('.scene'), fallback = document.getElementById('bunny');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  try {
+    const T = window.THREE, scene = new T.Scene();
+    const camera = new T.PerspectiveCamera(32, 1, .1, 100); camera.position.set(0, 2.25, 8.1); camera.lookAt(0, 1.65, 0);
+    const renderer = new T.WebGLRenderer({alpha:true, antialias:true});
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2)); renderer.shadowMap.enabled = true; renderer.shadowMap.type = T.PCFSoftShadowMap;
+    renderer.outputColorSpace = T.SRGBColorSpace; host.appendChild(renderer.domElement);
+    scene.add(new T.HemisphereLight(0xfff9ec, 0x8b9d83, 2.1));
+    const sun = new T.DirectionalLight(0xfff3df, 2.5); sun.position.set(-3, 7, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024,1024); sun.shadow.camera.left=-6; sun.shadow.camera.right=6; sun.shadow.camera.top=6; sun.shadow.camera.bottom=-6; sun.shadow.bias=-.0005; scene.add(sun);
+    const mat = (color, roughness=.8) => new T.MeshStandardMaterial({color, roughness});
+    const fur=mat(0xf5f0df), cream=mat(0xfff9eb), pink=mat(0xe7a5a3), dark=mat(0x303a33,.32), blush=mat(0xefb8ac), white=mat(0xffffff,.3), groundMat=new T.ShadowMaterial({opacity:.19});
+    const sphere = new T.SphereGeometry(1,32,24);
+    function ball(parent, material, x,y,z, sx,sy,sz) { const m=new T.Mesh(sphere,material); m.position.set(x,y,z); m.scale.set(sx,sy,sz); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; }
+    const floor = new T.Mesh(new T.PlaneGeometry(30,30),groundMat); floor.rotation.x=-Math.PI/2; floor.position.y=-.01; floor.receiveShadow=true; scene.add(floor);
+    const rabbit = new T.Group(); scene.add(rabbit);
+    ball(rabbit,fur,0,.86,0,.65,.79,.48); ball(rabbit,cream,0,.83,.405,.43,.51,.12);
+    ball(rabbit,fur,0,.63,-.51,.25,.25,.25);
+    const legs=[]; for(const side of [-1,1]) { const leg=new T.Group(); leg.position.set(side*.32,.4,0); rabbit.add(leg); ball(leg,fur,0,-.1,.03,.27,.39,.29); ball(leg,cream,0,-.25,.27,.27,.15,.4); legs.push(leg); }
+    const arms=[]; for(const side of [-1,1]) { const arm=new T.Group(); arm.position.set(side*.53,1.19,.06); arm.rotation.z=side*.27; rabbit.add(arm); ball(arm,fur,0,-.22,.09,.19,.37,.2); arms.push(arm); }
+    const head=new T.Group(); head.position.set(0,1.9,.06); rabbit.add(head); ball(head,fur,0,0,0,.69,.62,.54);
+    const ears=[]; for(const side of [-1,1]) { const ear=new T.Group(); ear.position.set(side*.34,.43,-.02); ear.rotation.z=-side*.17; head.add(ear); ball(ear,fur,0,.45,0,.205,.68,.145); ball(ear,pink,0,.46,.126,.115,.52,.035); ears.push(ear); }
+    const eyes=[]; for(const side of [-1,1]) { const eye=ball(head,dark,side*.27,.08,.484,.075,.092,.05); eyes.push(eye); ball(head,white,side*.25,.11,.527,.022,.025,.012); ball(head,blush,side*.43,-.14,.445,.13,.075,.035); ball(head,cream,side*.105,-.19,.51,.17,.12,.10); }
+    ball(head,pink,0,-.13,.615,.095,.065,.055);
+    const mouth=ball(head,dark,0,-.25,.604,.035,.025,.018);
+    // A little sage scarf gives the silhouette a handmade, friendly finish.
+    const scarf=mat(0x8ba68a); const band=new T.Mesh(new T.TorusGeometry(.42,.085,12,48),scarf); band.rotation.x=Math.PI/2; band.position.set(0,1.43,0); rabbit.add(band); ball(rabbit,scarf,.27,1.27,.43,.16,.24,.08);
+    const clock=new T.Clock(); let last=0, walkPhase=0, x=0, dir=1, pause=1.4;
+    function resize(){const w=host.clientWidth,h=host.clientHeight; renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();}
+    window.addEventListener('resize',resize); resize();
+    function frame(){ requestAnimationFrame(frame); const dt=Math.min(clock.getDelta(),.05); last+=dt;
+      const listening=window.bunnyListening===true, talking=window.bunnyTalking===true;
+      if (!reduced.matches) { if(pause>0) pause-=dt; else {x+=dir*dt*.48; walkPhase+=dt*8; if(Math.abs(x)>1.05){x=dir*1.05; dir*=-1; pause=1.1;}} }
+      const walking=!reduced.matches && pause<=0; rabbit.position.x=x;
+      rabbit.rotation.y=T.MathUtils.lerp(rabbit.rotation.y,walking?dir*.55:0,.05);
+      rabbit.position.y=walking?Math.abs(Math.sin(walkPhase))*.055:(!reduced.matches?Math.sin(last*2)*.015:0);
+      legs.forEach((l,i)=>l.rotation.x=walking?Math.sin(walkPhase+i*Math.PI)*.48:0);
+      arms.forEach((a,i)=>a.rotation.x=walking?Math.sin(walkPhase+i*Math.PI+Math.PI)*.3:0);
+      head.rotation.z=!reduced.matches?(listening?.12:Math.sin(last*1.2)*.035):0;
+      ears.forEach((e,i)=>e.rotation.z=(i?-.17:.17)+(!reduced.matches?Math.sin(last*2+i)*.035:0));
+      const blink=!reduced.matches && last%4.5>4.37 && last%4.5<4.5; eyes.forEach(e=>e.scale.y=blink?.008:.092);
+      mouth.scale.y=talking&&!reduced.matches?.025+Math.abs(Math.sin(last*13))*.055:.025;
+      renderer.render(scene,camera);
+    }
+    renderer.render(scene,camera); host.classList.add('has-3d'); frame();
+  } catch (error) { console.warn('3D bunny unavailable; using CSS fallback.', error); const canvas=host.querySelector('canvas'); if(canvas) canvas.remove(); }
+})();
+</script><script>
+(()=>{'use strict';const $=id=>document.getElementById(id),img=$('character'),bubble=$('speech'),button=$('activation'),status=$('voiceStatus');const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;const sessionId=crypto.randomUUID?.()||Date.now().toString(36);let busy=false,rec=null,handled=false;window.bunnyListening=false;window.bunnyTalking=false;
+function state(mode){window.bunnyListening=mode==='listen';window.bunnyTalking=mode==='talk';img.classList.toggle('listening',window.bunnyListening);img.classList.toggle('talking',window.bunnyTalking);}
+async function loadImage(){try{const r=await fetch('/webhook/bunny-ui',{cache:'no-store'});if(!r.ok)throw Error('source unavailable');const doc=new DOMParser().parseFromString(await r.text(),'text/html');const source=doc.querySelector('img.bunny-art');if(!source?.src?.startsWith('data:image/'))throw Error('image absent');img.onload=()=>{img.hidden=false;document.querySelector('.scene').classList.add('has-image')};img.src=source.src;}catch(e){console.info('Online image unavailable; falling back to local 3D bunny.',e)}}
+function say(message,next){bubble.textContent=message;state('talk');if(!window.speechSynthesis){state('');next?.();return;}speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(message);utterance.lang='cs-CZ';utterance.rate=.95;const voice=speechSynthesis.getVoices().find(v=>v.lang.toLowerCase().startsWith('cs'));if(voice)utterance.voice=voice;let done=false;const finish=()=>{if(done)return;done=true;state('');next?.()};utterance.onend=finish;utterance.onerror=finish;try{speechSynthesis.speak(utterance)}catch(e){finish()}setTimeout(finish,Math.max(3500,message.length*110));}
+function listen(){if(busy)return;if(!Recognition){status.textContent='Rozpoznávání řeči není podporováno';button.textContent='Prohlížeč nepodporuje mikrofon';button.hidden=false;return;}rec=new Recognition();rec.lang='cs-CZ';rec.continuous=false;rec.interimResults=false;rec.onstart=()=>{state('listen');status.textContent='Poslouchám…';button.hidden=true};rec.onresult=async event=>{handled=true;busy=true;state('');const message=Array.from(event.results).map(r=>r[0].transcript).join(' ').trim();if(!message){busy=false;listen();return;}bubble.textContent=message;status.textContent='Přemýšlím…';try{const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message,sessionId})});const response=await res.json();if(!res.ok||typeof response.reply!=='string')throw Error('Invalid response');busy=false;status.textContent='';say(response.reply,listen)}catch(err){busy=false;say('Promiň, teď mi spojení nefunguje.',listen)}};rec.onerror=e=>{state('');status.textContent='Mikrofon: '+e.error;button.textContent='Klepni pro zapnutí mikrofonu';button.hidden=false};rec.onend=()=>{state('');if(!busy&&!handled){button.textContent='Znovu poslouchat';button.hidden=false;}handled=false};try{rec.start()}catch(e){button.hidden=false;button.textContent='Klepni pro zapnutí mikrofonu'}}
+button.addEventListener('click',()=>{button.hidden=true;status.textContent='';say('Čau, co pro tebe můžu udělat?',listen)});
+loadImage();say('Čau, co pro tebe můžu udělat?',listen);
+})();
+</script></body></html>
